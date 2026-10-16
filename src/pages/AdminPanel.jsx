@@ -322,10 +322,20 @@ function Dashboard({ sessions, summaries, onOpenSession, onReload }) {
     onReload()
   }
 
+  async function toggleActive(e, id, current) {
+    e.stopPropagation()
+    await supabase.from('sessions').update({ is_active: !current }).eq('id', id)
+    onReload()
+  }
+
   async function deleteSession(e, id) {
     e.stopPropagation()
     if (!confirm('¿Eliminar esta sesión y todos sus horarios/reservas?')) return
-    await supabase.from('sessions').delete().eq('id', id)
+    const { error } = await supabase.from('sessions').delete().eq('id', id)
+    if (error) {
+      alert('No se pudo eliminar. Verificá que las foreign keys tengan CASCADE.')
+      return
+    }
     onReload()
   }
 
@@ -390,12 +400,13 @@ function Dashboard({ sessions, summaries, onOpenSession, onReload }) {
             >
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center shrink-0">
-                    <Camera className="w-5 h-5 text-brand-600" />
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${s.is_active ? 'bg-brand-50' : 'bg-gray-100'}`}>
+                    <Camera className={`w-5 h-5 ${s.is_active ? 'text-brand-600' : 'text-gray-400'}`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{s.name}</p>
+                    <p className={`font-semibold truncate ${s.is_active ? 'text-gray-900' : 'text-gray-400'}`}>{s.name}</p>
                     {s.description && <p className="text-xs text-gray-500 truncate">{s.description}</p>}
+                    {!s.is_active && <p className="text-xs text-gray-400">Inactivo</p>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -415,6 +426,17 @@ function Dashboard({ sessions, summaries, onOpenSession, onReload }) {
                     ) : (
                       <><Copy className="w-3.5 h-3.5" /> Copiar link</>
                     )}
+                  </button>
+                  <button
+                    onClick={(e) => toggleActive(e, s.id, s.is_active)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      s.is_active
+                        ? 'text-emerald-600 hover:bg-emerald-50'
+                        : 'text-gray-400 hover:bg-gray-100'
+                    }`}
+                    title={s.is_active ? 'Desactivar link' : 'Activar link'}
+                  >
+                    {s.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                   </button>
                   <button
                     onClick={(e) => deleteSession(e, s.id)}
