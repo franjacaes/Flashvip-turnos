@@ -5,7 +5,7 @@ import { format, parseISO, addMinutes, parse } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Zap, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, Clock, Calendar,
-  Users, CheckCircle2, AlertCircle, Loader2, ChevronDown, RefreshCw,
+  Users, CheckCircle2, AlertCircle, Loader2, ChevronDown, RefreshCw, Copy, Check,
 } from 'lucide-react'
 
 const TABS = [
@@ -175,7 +175,7 @@ export default function AdminPanel() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="Total Horarios" value={stats.total} color="gray" />
             <StatCard label="Disponibles" value={stats.available} color="blue" />
-            <StatCard label="Pendientes" value={stats.pending} color="amber" />
+            <StatCard label="Msj. Pendientes" value={stats.pending} color="amber" />
             <StatCard label="Confirmados" value={stats.confirmed} color="emerald" />
           </div>
         </div>
@@ -524,6 +524,8 @@ function SlotsTab({ sessionId, slots, onReload }) {
    BOOKINGS TAB
    ========================================= */
 function BookingsTab({ bookings, slots, onReload }) {
+  const [copiedId, setCopiedId] = useState(null)
+
   async function toggleStatus(bookingId, currentStatus) {
     const newStatus = currentStatus === 'pending' ? 'confirmed' : 'pending'
     await supabase
@@ -531,6 +533,32 @@ function BookingsTab({ bookings, slots, onReload }) {
       .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', bookingId)
     onReload()
+  }
+
+  function buildMessage(b) {
+    const slot = b.time_slots
+    const fecha = slot
+      ? format(parseISO(slot.slot_date), "EEEE d 'de' MMMM, yyyy", { locale: es })
+      : ''
+    const hora = slot ? `${slot.start_time.slice(0, 5)} a ${slot.end_time.slice(0, 5)}` : ''
+
+    return [
+      `Hola ${b.parent_name}, le confirmamos el turno de fotos para *${b.child_name}*`,
+      '',
+      `Fecha: ${fecha}`,
+      `Horario: ${hora}`,
+      '',
+      'Por favor presentarse puntualmente.',
+      '',
+      'Flash VIP - Fotografía Escolar',
+    ].join('\n')
+  }
+
+  async function copyMessage(b) {
+    const msg = buildMessage(b)
+    await navigator.clipboard.writeText(msg)
+    setCopiedId(b.id)
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   if (bookings.length === 0) {
@@ -545,7 +573,7 @@ function BookingsTab({ bookings, slots, onReload }) {
       <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-amber-400" />
-          Pendiente de confirmar
+          Mensaje pendiente
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-emerald-500" />
@@ -578,30 +606,54 @@ function BookingsTab({ bookings, slots, onReload }) {
                 </p>
                 {b.time_slots && (
                   <p className="text-sm text-brand-600 font-medium">
-                    📅 {format(parseISO(b.time_slots.slot_date), "d MMM yyyy", { locale: es })} — {b.time_slots.start_time.slice(0, 5)}
+                    {format(parseISO(b.time_slots.slot_date), "d MMM yyyy", { locale: es })} — {b.time_slots.start_time.slice(0, 5)}
                   </p>
                 )}
               </div>
-              <button
-                onClick={() => toggleStatus(b.id, b.status)}
-                className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                  isPending
-                    ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                    : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                }`}
-              >
-                {isPending ? (
-                  <>
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    Pendiente
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Confirmado
-                  </>
+              <div className="shrink-0 flex flex-col gap-2">
+                <button
+                  onClick={() => toggleStatus(b.id, b.status)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                    isPending
+                      ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                      : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                  }`}
+                >
+                  {isPending ? (
+                    <>
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Msj. pendiente
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Confirmado
+                    </>
+                  )}
+                </button>
+                {isPending && (
+                  <button
+                    onClick={() => copyMessage(b)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                      copiedId === b.id
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
+                    }`}
+                  >
+                    {copiedId === b.id ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        Copiar mensaje
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+              </div>
             </div>
           </div>
         )
