@@ -554,9 +554,16 @@ function BookingsTab({ bookings, slots, onReload }) {
     ].join('\n')
   }
 
-  async function copyMessage(b) {
+  function copyMessage(b) {
     const msg = buildMessage(b)
-    await navigator.clipboard.writeText(msg)
+    const ta = document.createElement('textarea')
+    ta.value = msg
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
     setCopiedId(b.id)
     setTimeout(() => setCopiedId(null), 2000)
   }
