@@ -13,6 +13,7 @@ export default function PublicBooking() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [selectedSlot, setSelectedSlot] = useState(null)
+  const [showNameModal, setShowNameModal] = useState(false)
 
   const [form, setForm] = useState({
     parentName: '',
@@ -83,10 +84,14 @@ export default function PublicBooking() {
     )
   }
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault()
     if (!isFormValid() || submitting) return
+    setShowNameModal(true)
+  }
 
+  async function confirmBooking() {
+    setShowNameModal(false)
     setSubmitting(true)
     setError(null)
 
@@ -338,6 +343,41 @@ export default function PublicBooking() {
           Flash VIP
         </p>
       </main>
+
+      {/* Modal verificar nombre */}
+      {showNameModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-5">
+          <div className="bg-white rounded-2xl p-7 max-w-sm w-full shadow-2xl text-center">
+            <div className="text-4xl mb-3">✍️</div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              Verificá el nombre del alumno/a
+            </h3>
+            <p className="text-sm text-gray-500 leading-relaxed mb-3">
+              Es muy importante que el nombre esté escrito <strong className="text-gray-700">correctamente</strong> ya que será utilizado en los materiales.
+            </p>
+            <div className="bg-brand-50 border border-brand-500 rounded-xl p-3 mb-4 text-left">
+              <p className="text-brand-800 font-bold text-base mb-2">{form.childName}</p>
+              <p className="text-xs text-brand-800 font-semibold mb-1">Chequeá que esté correcto:</p>
+              <ul className="text-xs text-brand-800 space-y-0.5 ml-4 list-disc">
+                <li>Nombre completo sin abreviar</li>
+                <li>Tildes y acentos — ej: <strong>Sofía, Nicolás, María José</strong></li>
+              </ul>
+            </div>
+            <button
+              onClick={confirmBooking}
+              className="w-full py-3 bg-brand-500 text-white rounded-xl font-bold text-sm hover:bg-brand-600 transition-colors shadow-lg shadow-brand-500/30 mb-2"
+            >
+              Sí, ya lo verifiqué
+            </button>
+            <button
+              onClick={() => setShowNameModal(false)}
+              className="w-full py-3 bg-white text-gray-500 border border-gray-200 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors"
+            >
+              Mejor lo corrijo
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
