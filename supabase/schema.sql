@@ -18,6 +18,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
   description TEXT,
   is_active BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),

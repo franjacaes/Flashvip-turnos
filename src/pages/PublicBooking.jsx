@@ -32,10 +32,11 @@ export default function PublicBooking() {
 
     let activeSession = null
     if (paramSessionId) {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paramSessionId)
       const { data } = await supabase
         .from('sessions')
         .select('*')
-        .eq('id', paramSessionId)
+        .eq(isUUID ? 'id' : 'slug', paramSessionId)
         .limit(1)
       activeSession = data?.[0] || null
     } else {

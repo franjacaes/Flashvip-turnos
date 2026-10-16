@@ -289,12 +289,30 @@ function Dashboard({ sessions, summaries, onOpenSession, onReload }) {
     setTimeout(() => setCopiedLinkId(null), 2000)
   }
 
+  function toSlug(text) {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  }
+
   async function createSession(e) {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
+    let slug = toSlug(name.trim())
+    const { data: existing } = await supabase
+      .from('sessions')
+      .select('slug')
+      .like('slug', `${slug}%`)
+    if (existing?.some(s => s.slug === slug)) {
+      slug = `${slug}-${existing.length}`
+    }
     await supabase.from('sessions').insert({
       name: name.trim(),
+      slug,
       description: desc.trim() || null,
     })
     setName('')
@@ -384,7 +402,7 @@ function Dashboard({ sessions, summaries, onOpenSession, onReload }) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      copyToClipboard(`${window.location.origin}/s/${s.id}`, s.id)
+                      copyToClipboard(`${window.location.origin}/s/${s.slug || s.id}`, s.id)
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       copiedLinkId === s.id
