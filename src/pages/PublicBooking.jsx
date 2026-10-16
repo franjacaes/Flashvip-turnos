@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -7,6 +7,7 @@ import { Camera, Clock, User, Phone, Baby, Loader2, AlertCircle } from 'lucide-r
 
 export default function PublicBooking() {
   const navigate = useNavigate()
+  const { sessionId: paramSessionId } = useParams()
   const [session, setSession] = useState(null)
   const [slots, setSlots] = useState([])
   const [loading, setLoading] = useState(true)
@@ -28,18 +29,29 @@ export default function PublicBooking() {
 
   async function loadSession() {
     setLoading(true)
-    const { data: sessions } = await supabase
-      .from('sessions')
-      .select('*')
-      .eq('is_active', true)
-      .limit(1)
 
-    if (!sessions?.length) {
+    let activeSession = null
+    if (paramSessionId) {
+      const { data } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', paramSessionId)
+        .limit(1)
+      activeSession = data?.[0] || null
+    } else {
+      const { data } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('is_active', true)
+        .limit(1)
+      activeSession = data?.[0] || null
+    }
+
+    if (!activeSession) {
       setLoading(false)
       return
     }
 
-    const activeSession = sessions[0]
     setSession(activeSession)
 
     const { data: slotsData } = await supabase

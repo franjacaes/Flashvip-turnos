@@ -231,6 +231,21 @@ function SessionsTab({ sessions, selectedSession, onReload }) {
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
   const [saving, setSaving] = useState(false)
+  const [copiedLinkId, setCopiedLinkId] = useState(null)
+
+  function copyLink(id) {
+    const url = `${window.location.origin}/s/${id}`
+    const ta = document.createElement('textarea')
+    ta.value = url
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    setCopiedLinkId(id)
+    setTimeout(() => setCopiedLinkId(null), 2000)
+  }
 
   async function createSession(e) {
     e.preventDefault()
@@ -317,8 +332,25 @@ function SessionsTab({ sessions, selectedSession, onReload }) {
             <div className="min-w-0">
               <p className="font-medium text-gray-900 truncate">{s.name}</p>
               {s.description && <p className="text-sm text-gray-500 truncate">{s.description}</p>}
+              <p className="text-xs text-gray-400 mt-1 truncate">
+                {window.location.origin}/s/{s.id}
+              </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => copyLink(s.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  copiedLinkId === s.id
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
+                }`}
+              >
+                {copiedLinkId === s.id ? (
+                  <><Check className="w-3.5 h-3.5" /> Copiado!</>
+                ) : (
+                  <><Copy className="w-3.5 h-3.5" /> Copiar link</>
+                )}
+              </button>
               <button
                 onClick={() => toggleActive(s.id, s.is_active)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -550,7 +582,7 @@ function BookingsTab({ bookings, slots, onReload }) {
       '',
       'Por favor presentarse puntualmente.',
       '',
-      'Flash VIP - Fotografía Escolar',
+      'Flash VIP Kids',
     ].join('\n')
   }
 
