@@ -274,7 +274,7 @@ export default function PublicBooking() {
                             className={`
                               py-2.5 px-2 rounded-xl text-sm font-medium transition-all border-2
                               ${isBooked
-                                ? 'bg-gray-50 border-gray-200 text-gray-400 line-through cursor-not-allowed'
+                                ? 'bg-brand-100 border-brand-300 text-brand-600 cursor-not-allowed opacity-80'
                                 : isSelected
                                   ? 'bg-brand-600 border-brand-600 text-white shadow-lg shadow-brand-600/25 scale-105'
                                   : 'bg-white border-gray-200 text-gray-700 hover:border-brand-400 hover:bg-brand-50 active:scale-95'
@@ -302,7 +302,7 @@ export default function PublicBooking() {
                 Seleccionado
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-gray-100 border-2 border-gray-200" />
+                <span className="w-3 h-3 rounded bg-brand-100 border-2 border-brand-300" />
                 Ocupado
               </span>
             </div>
