@@ -333,7 +333,7 @@ function Dashboard({ sessions, summaries, onOpenSession, onReload }) {
     if (!confirm('¿Eliminar esta sesión y todos sus horarios/reservas?')) return
     const { error } = await supabase.from('sessions').delete().eq('id', id)
     if (error) {
-      alert('No se pudo eliminar. Verificá que las foreign keys tengan CASCADE.')
+      alert(`Error al eliminar: ${error.message}`)
       return
     }
     onReload()
