@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CheckCircle2, Calendar, Clock, User, Baby, Phone, Loader2, Zap } from 'lucide-react'
+import { CheckCircle2, Calendar, Clock, User, Baby, Phone, Loader2 } from 'lucide-react'
 
 export default function BookingConfirmation() {
   const { bookingId } = useParams()
@@ -56,14 +56,8 @@ export default function BookingConfirmation() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shrink-0">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">Flash VIP</h1>
-            <p className="text-sm text-gray-500">Turnos Fotográficos</p>
-          </div>
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-center">
+          <img src="/logo.jpg" alt="Flash VIP" className="h-10" />
         </div>
       </header>
 
@@ -112,9 +106,6 @@ export default function BookingConfirmation() {
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider">Hijo/a</p>
                 <p className="text-gray-900">{booking.child_name}</p>
-                {booking.child_group && (
-                  <p className="text-sm text-gray-500">{booking.child_group}</p>
-                )}
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -137,7 +128,7 @@ export default function BookingConfirmation() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-8">
-          Flash VIP — Fotografía Escolar
+          Flash VIP
         </p>
       </main>
     </div>

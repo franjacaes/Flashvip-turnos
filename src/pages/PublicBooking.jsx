@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Camera, Clock, User, Phone, Baby, Users, Loader2, AlertCircle, Zap } from 'lucide-react'
+import { Camera, Clock, User, Phone, Baby, Loader2, AlertCircle } from 'lucide-react'
 
 export default function PublicBooking() {
   const navigate = useNavigate()
@@ -17,7 +17,6 @@ export default function PublicBooking() {
   const [form, setForm] = useState({
     parentName: '',
     childName: '',
-    childGroup: '',
     phoneCountryCode: '+595',
     phoneNumber: '',
   })
@@ -96,7 +95,7 @@ export default function PublicBooking() {
       p_session_id: session.id,
       p_parent_name: form.parentName.trim(),
       p_child_name: form.childName.trim(),
-      p_child_group: form.childGroup.trim() || null,
+      p_child_group: null,
       p_phone_country_code: form.phoneCountryCode,
       p_phone_number: form.phoneNumber.trim(),
     })
@@ -137,10 +136,7 @@ export default function PublicBooking() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Camera className="w-8 h-8 text-brand-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Flash VIP</h1>
+          <img src="/logo.jpg" alt="Flash VIP" className="h-12 mx-auto mb-4" />
           <p className="text-gray-500">No hay sesiones de fotos disponibles en este momento. Volvé a intentar más tarde.</p>
         </div>
       </div>
@@ -153,14 +149,8 @@ export default function PublicBooking() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shrink-0">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">Flash VIP</h1>
-            <p className="text-sm text-gray-500">Turnos Fotográficos</p>
-          </div>
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-center">
+          <img src="/logo.jpg" alt="Flash VIP" className="h-10" />
         </div>
       </header>
 
@@ -243,19 +233,6 @@ export default function PublicBooking() {
                   onChange={e => updateForm('childName', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all text-gray-900"
                   placeholder="Ej: Sofía González"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Grupo / Grado
-                  <span className="text-gray-400 font-normal ml-1">(opcional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.childGroup}
-                  onChange={e => updateForm('childGroup', e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all text-gray-900"
-                  placeholder="Ej: Preescolar A, 1er grado"
                 />
               </div>
             </div>
@@ -358,7 +335,7 @@ export default function PublicBooking() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-8 mb-4">
-          Flash VIP — Fotografía Escolar
+          Flash VIP
         </p>
       </main>
     </div>
