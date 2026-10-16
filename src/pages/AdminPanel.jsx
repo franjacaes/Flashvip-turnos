@@ -6,22 +6,23 @@ import { es } from 'date-fns/locale'
 import {
   Zap, LogOut, Plus, Trash2, ToggleLeft, ToggleRight, Clock, Calendar,
   Users, CheckCircle2, AlertCircle, Loader2, ChevronDown, RefreshCw, Copy, Check,
+  ChevronLeft, Camera,
 } from 'lucide-react'
 
-const TABS = [
-  { id: 'sessions', label: 'Sesiones' },
+const DETAIL_TABS = [
   { id: 'slots', label: 'Horarios' },
   { id: 'bookings', label: 'Reservas' },
 ]
 
 export default function AdminPanel() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState('sessions')
   const [sessions, setSessions] = useState([])
+  const [pendingCounts, setPendingCounts] = useState({})
   const [slots, setSlots] = useState([])
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedSession, setSelectedSession] = useState(null)
+  const [tab, setTab] = useState('slots')
 
   useEffect(() => {
     checkAuth()
@@ -49,10 +50,20 @@ export default function AdminPanel() {
       .select('*')
       .order('created_at', { ascending: false })
     setSessions(data || [])
-    if (data?.length && !selectedSession) {
-      setSelectedSession(data[0].id)
-    }
     setLoading(false)
+    loadPendingCounts()
+  }
+
+  async function loadPendingCounts() {
+    const { data } = await supabase
+      .from('bookings')
+      .select('session_id, status')
+      .eq('status', 'pending')
+    const counts = {}
+    for (const b of (data || [])) {
+      counts[b.session_id] = (counts[b.session_id] || 0) + 1
+    }
+    setPendingCounts(counts)
   }
 
   async function loadSlots() {
@@ -79,6 +90,18 @@ export default function AdminPanel() {
     loadBookings()
   }
 
+  function openSession(id) {
+    setSelectedSession(id)
+    setTab('slots')
+  }
+
+  function goBack() {
+    setSelectedSession(null)
+    setSlots([])
+    setBookings([])
+    loadSessions()
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut()
     navigate('/admin')
@@ -93,23 +116,62 @@ export default function AdminPanel() {
   }
 
   const currentSession = sessions.find(s => s.id === selectedSession)
-  const stats = {
+  const stats = selectedSession ? {
     total: slots.length,
     available: slots.filter(s => !s.is_booked).length,
     pending: bookings.filter(b => b.status === 'pending').length,
     confirmed: bookings.filter(b => b.status === 'confirmed').length,
+  } : null
+
+  if (!selectedSession) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
+          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-brand-600 rounded-lg flex items-center justify-center">
+                <Zap className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-gray-900">Flash VIP Kids</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <LogOut className="w-4 h-4" /> Salir
+            </button>
+          </div>
+        </header>
+
+        <main className="max-w-5xl mx-auto px-4 py-6">
+          <Dashboard
+            sessions={sessions}
+            pendingCounts={pendingCounts}
+            onOpenSession={openSession}
+            onReload={loadSessions}
+          />
+        </main>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-brand-600 rounded-lg flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
+            <button
+              onClick={goBack}
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <p className="font-bold text-gray-900">{currentSession?.name}</p>
+              {currentSession?.description && (
+                <p className="text-xs text-gray-500">{currentSession.description}</p>
+              )}
             </div>
-            <span className="font-bold text-gray-900">Admin Panel</span>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -119,35 +181,12 @@ export default function AdminPanel() {
             >
               <RefreshCw className="w-4 h-4" />
             </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <LogOut className="w-4 h-4" /> Salir
-            </button>
           </div>
         </div>
 
-        {/* Session selector + tabs */}
         <div className="max-w-5xl mx-auto px-4 pb-0">
-          {sessions.length > 0 && (
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-gray-400 uppercase tracking-wider shrink-0">Sesión:</span>
-              <select
-                value={selectedSession || ''}
-                onChange={e => setSelectedSession(e.target.value)}
-                className="text-sm font-medium text-gray-900 bg-transparent border-none outline-none cursor-pointer py-1"
-              >
-                {sessions.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} {s.is_active ? '(Activa)' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
           <div className="flex gap-1">
-            {TABS.map(t => (
+            {DETAIL_TABS.map(t => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
@@ -169,34 +208,24 @@ export default function AdminPanel() {
         </div>
       </header>
 
-      {/* Stats bar */}
-      {selectedSession && (
-        <div className="max-w-5xl mx-auto px-4 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="Total Horarios" value={stats.total} color="gray" />
-            <StatCard label="Disponibles" value={stats.available} color="blue" />
-            <StatCard label="Msj. Pendientes" value={stats.pending} color="amber" />
-            <StatCard label="Confirmados" value={stats.confirmed} color="emerald" />
-          </div>
+      <div className="max-w-5xl mx-auto px-4 mt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label="Total Horarios" value={stats.total} color="gray" />
+          <StatCard label="Disponibles" value={stats.available} color="blue" />
+          <StatCard label="Msj. Pendientes" value={stats.pending} color="amber" />
+          <StatCard label="Confirmados" value={stats.confirmed} color="emerald" />
         </div>
-      )}
+      </div>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        {tab === 'sessions' && (
-          <SessionsTab
-            sessions={sessions}
-            selectedSession={selectedSession}
-            onReload={loadSessions}
-          />
-        )}
-        {tab === 'slots' && selectedSession && (
+        {tab === 'slots' && (
           <SlotsTab
             sessionId={selectedSession}
             slots={slots}
             onReload={loadSlots}
           />
         )}
-        {tab === 'bookings' && selectedSession && (
+        {tab === 'bookings' && (
           <BookingsTab
             bookings={bookings}
             slots={slots}
@@ -224,19 +253,18 @@ function StatCard({ label, value, color }) {
 }
 
 /* =========================================
-   SESSIONS TAB
+   DASHBOARD
    ========================================= */
-function SessionsTab({ sessions, selectedSession, onReload }) {
+function Dashboard({ sessions, pendingCounts, onOpenSession, onReload }) {
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
   const [saving, setSaving] = useState(false)
   const [copiedLinkId, setCopiedLinkId] = useState(null)
 
-  function copyLink(id) {
-    const url = `${window.location.origin}/s/${id}`
+  function copyToClipboard(text, id) {
     const ta = document.createElement('textarea')
-    ta.value = url
+    ta.value = text
     ta.style.position = 'fixed'
     ta.style.opacity = '0'
     document.body.appendChild(ta)
@@ -262,15 +290,8 @@ function SessionsTab({ sessions, selectedSession, onReload }) {
     onReload()
   }
 
-  async function toggleActive(id, currentState) {
-    if (!currentState) {
-      await supabase.from('sessions').update({ is_active: false }).neq('id', id)
-    }
-    await supabase.from('sessions').update({ is_active: !currentState }).eq('id', id)
-    onReload()
-  }
-
-  async function deleteSession(id) {
+  async function deleteSession(e, id) {
+    e.stopPropagation()
     if (!confirm('¿Eliminar esta sesión y todos sus horarios/reservas?')) return
     await supabase.from('sessions').delete().eq('id', id)
     onReload()
@@ -289,7 +310,7 @@ function SessionsTab({ sessions, selectedSession, onReload }) {
         <form onSubmit={createSession} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-3">
           <input
             type="text"
-            placeholder="Nombre (ej: Fotos Preescolar - Octubre 2024)"
+            placeholder="Nombre del grupo (ej: 9no B - ICI)"
             value={name}
             onChange={e => setName(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none text-sm"
@@ -321,57 +342,64 @@ function SessionsTab({ sessions, selectedSession, onReload }) {
         </form>
       )}
 
-      <div className="space-y-2">
-        {sessions.map(s => (
-          <div
-            key={s.id}
-            className={`bg-white rounded-xl p-4 border flex items-center justify-between gap-4 ${
-              s.is_active ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-100'
-            }`}
-          >
-            <div className="min-w-0">
-              <p className="font-medium text-gray-900 truncate">{s.name}</p>
-              {s.description && <p className="text-sm text-gray-500 truncate">{s.description}</p>}
-              <p className="text-xs text-gray-400 mt-1 truncate">
-                {window.location.origin}/s/{s.id}
-              </p>
+      {sessions.length === 0 && (
+        <p className="text-center text-gray-400 py-8">No hay sesiones creadas todavía.</p>
+      )}
+
+      <div className="space-y-3">
+        {sessions.map(s => {
+          const pending = pendingCounts[s.id] || 0
+          return (
+            <div
+              key={s.id}
+              onClick={() => onOpenSession(s.id)}
+              className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm cursor-pointer hover:border-brand-300 hover:shadow-md transition-all"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center shrink-0">
+                    <Camera className="w-5 h-5 text-brand-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{s.name}</p>
+                    {s.description && <p className="text-xs text-gray-500 truncate">{s.description}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {pending > 0 && (
+                    <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
+                      <AlertCircle className="w-3 h-3" />
+                      {pending} msj. pendiente{pending > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      copyToClipboard(`${window.location.origin}/s/${s.id}`, s.id)
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      copiedLinkId === s.id
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
+                    }`}
+                  >
+                    {copiedLinkId === s.id ? (
+                      <><Check className="w-3.5 h-3.5" /> Copiado!</>
+                    ) : (
+                      <><Copy className="w-3.5 h-3.5" /> Copiar link</>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => deleteSession(e, s.id)}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => copyLink(s.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  copiedLinkId === s.id
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
-                }`}
-              >
-                {copiedLinkId === s.id ? (
-                  <><Check className="w-3.5 h-3.5" /> Copiado!</>
-                ) : (
-                  <><Copy className="w-3.5 h-3.5" /> Copiar link</>
-                )}
-              </button>
-              <button
-                onClick={() => toggleActive(s.id, s.is_active)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  s.is_active
-                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
-                title={s.is_active ? 'Desactivar' : 'Activar'}
-              >
-                {s.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                {s.is_active ? 'Activa' : 'Inactiva'}
-              </button>
-              <button
-                onClick={() => deleteSession(s.id)}
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
