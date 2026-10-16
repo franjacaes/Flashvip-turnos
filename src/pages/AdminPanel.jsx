@@ -17,7 +17,7 @@ const DETAIL_TABS = [
 export default function AdminPanel() {
   const navigate = useNavigate()
   const [sessions, setSessions] = useState([])
-  const [pendingCounts, setPendingCounts] = useState({})
+  const [sessionSummaries, setSessionSummaries] = useState({})
   const [slots, setSlots] = useState([])
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -51,19 +51,32 @@ export default function AdminPanel() {
       .order('created_at', { ascending: false })
     setSessions(data || [])
     setLoading(false)
-    loadPendingCounts()
+    loadSessionSummaries()
   }
 
-  async function loadPendingCounts() {
-    const { data } = await supabase
-      .from('bookings')
-      .select('session_id, status')
-      .eq('status', 'pending')
-    const counts = {}
-    for (const b of (data || [])) {
-      counts[b.session_id] = (counts[b.session_id] || 0) + 1
+  async function loadSessionSummaries() {
+    const [{ data: allSlots }, { data: allBookings }] = await Promise.all([
+      supabase.from('time_slots').select('session_id, slot_date, start_time, end_time, is_booked').order('slot_date').order('start_time'),
+      supabase.from('bookings').select('session_id, status'),
+    ])
+    const sums = {}
+    for (const slot of (allSlots || [])) {
+      if (!sums[slot.session_id]) sums[slot.session_id] = { dates: {}, total: 0, booked: 0, available: 0, pending: 0, confirmed: 0 }
+      const s = sums[slot.session_id]
+      if (!s.dates[slot.slot_date]) s.dates[slot.slot_date] = { first: slot.start_time, last: slot.end_time }
+      const d = s.dates[slot.slot_date]
+      if (slot.start_time < d.first) d.first = slot.start_time
+      if (slot.end_time > d.last) d.last = slot.end_time
+      s.total++
+      if (slot.is_booked) s.booked++
+      else s.available++
     }
-    setPendingCounts(counts)
+    for (const b of (allBookings || [])) {
+      if (!sums[b.session_id]) continue
+      if (b.status === 'pending') sums[b.session_id].pending++
+      else if (b.status === 'confirmed') sums[b.session_id].confirmed++
+    }
+    setSessionSummaries(sums)
   }
 
   async function loadSlots() {
@@ -119,8 +132,8 @@ export default function AdminPanel() {
   const stats = selectedSession ? {
     total: slots.length,
     available: slots.filter(s => !s.is_booked).length,
+    confirmed: slots.filter(s => s.is_booked).length,
     pending: bookings.filter(b => b.status === 'pending').length,
-    confirmed: bookings.filter(b => b.status === 'confirmed').length,
   } : null
 
   if (!selectedSession) {
@@ -146,7 +159,7 @@ export default function AdminPanel() {
         <main className="max-w-5xl mx-auto px-4 py-6">
           <Dashboard
             sessions={sessions}
-            pendingCounts={pendingCounts}
+            summaries={sessionSummaries}
             onOpenSession={openSession}
             onReload={loadSessions}
           />
@@ -210,10 +223,10 @@ export default function AdminPanel() {
 
       <div className="max-w-5xl mx-auto px-4 mt-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Total Horarios" value={stats.total} color="gray" />
+          <StatCard label="Total" value={stats.total} color="gray" />
           <StatCard label="Disponibles" value={stats.available} color="blue" />
-          <StatCard label="Msj. Pendientes" value={stats.pending} color="amber" />
           <StatCard label="Confirmados" value={stats.confirmed} color="emerald" />
+          <StatCard label="Msj. Pendiente" value={stats.pending} color="amber" />
         </div>
       </div>
 
@@ -222,6 +235,7 @@ export default function AdminPanel() {
           <SlotsTab
             sessionId={selectedSession}
             slots={slots}
+            bookings={bookings}
             onReload={loadSlots}
           />
         )}
@@ -255,7 +269,7 @@ function StatCard({ label, value, color }) {
 /* =========================================
    DASHBOARD
    ========================================= */
-function Dashboard({ sessions, pendingCounts, onOpenSession, onReload }) {
+function Dashboard({ sessions, summaries, onOpenSession, onReload }) {
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
@@ -348,14 +362,15 @@ function Dashboard({ sessions, pendingCounts, onOpenSession, onReload }) {
 
       <div className="space-y-3">
         {sessions.map(s => {
-          const pending = pendingCounts[s.id] || 0
+          const sum = summaries[s.id]
+          const dates = sum ? Object.entries(sum.dates).sort(([a], [b]) => a.localeCompare(b)) : []
           return (
             <div
               key={s.id}
               onClick={() => onOpenSession(s.id)}
               className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm cursor-pointer hover:border-brand-300 hover:shadow-md transition-all"
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center shrink-0">
                     <Camera className="w-5 h-5 text-brand-600" />
@@ -366,12 +381,6 @@ function Dashboard({ sessions, pendingCounts, onOpenSession, onReload }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {pending > 0 && (
-                    <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
-                      <AlertCircle className="w-3 h-3" />
-                      {pending} msj. pendiente{pending > 1 ? 's' : ''}
-                    </span>
-                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -397,6 +406,37 @@ function Dashboard({ sessions, pendingCounts, onOpenSession, onReload }) {
                   </button>
                 </div>
               </div>
+
+              {sum && sum.total > 0 ? (
+                <div className="ml-13 pl-[52px]">
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500 mb-2">
+                    {dates.map(([date, range]) => (
+                      <span key={date} className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-brand-400" />
+                        {format(parseISO(date), "d MMM", { locale: es })} · {range.first.slice(0, 5)}–{range.last.slice(0, 5)}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-gray-500">{sum.total} total</span>
+                    <span className="text-gray-400">·</span>
+                    <span className="text-sky-600 font-medium">{sum.available} disponibles</span>
+                    <span className="text-gray-400">·</span>
+                    <span className="text-emerald-600">{sum.booked} confirmados</span>
+                    {sum.pending > 0 && (
+                      <>
+                        <span className="text-gray-400">·</span>
+                        <span className="flex items-center gap-1 text-amber-600 font-semibold">
+                          <AlertCircle className="w-3 h-3" />
+                          {sum.pending} msj. pend.
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="pl-[52px] text-xs text-gray-400">Sin horarios cargados</p>
+              )}
             </div>
           )
         })}
@@ -408,12 +448,18 @@ function Dashboard({ sessions, pendingCounts, onOpenSession, onReload }) {
 /* =========================================
    SLOTS TAB
    ========================================= */
-function SlotsTab({ sessionId, slots, onReload }) {
+function SlotsTab({ sessionId, slots, bookings, onReload }) {
   const [date, setDate] = useState('')
   const [startTime, setStartTime] = useState('08:00')
   const [endTime, setEndTime] = useState('12:00')
   const [interval, setInterval_] = useState(15)
   const [saving, setSaving] = useState(false)
+  const [showAddDate, setShowAddDate] = useState(false)
+
+  const bookingBySlot = {}
+  for (const b of bookings) {
+    if (b.time_slot_id) bookingBySlot[b.time_slot_id] = b
+  }
 
   async function generateSlots(e) {
     e.preventDefault()
@@ -443,6 +489,8 @@ function SlotsTab({ sessionId, slots, onReload }) {
     }
 
     setSaving(false)
+    setShowAddDate(false)
+    setDate('')
     onReload()
   }
 
@@ -468,64 +516,85 @@ function SlotsTab({ sessionId, slots, onReload }) {
     grouped[slot.slot_date].push(slot)
   }
 
+  const hasSlots = Object.keys(grouped).length > 0
+
   return (
     <div className="space-y-6">
-      {/* Generator */}
-      <form onSubmit={generateSlots} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Plus className="w-4 h-4 text-brand-600" />
-          Generar Horarios
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Fecha</label>
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-brand-500 outline-none"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Desde</label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={e => setStartTime(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-brand-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Hasta</label>
-            <input
-              type="time"
-              value={endTime}
-              onChange={e => setEndTime(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-brand-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Cada (min)</label>
-            <select
-              value={interval}
-              onChange={e => setInterval_(+e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-brand-500 outline-none bg-white"
-            >
-              {[10, 15, 20, 30, 45, 60].map(m => (
-                <option key={m} value={m}>{m} min</option>
-              ))}
-            </select>
-          </div>
-        </div>
+      {/* Add date button or form */}
+      {!showAddDate ? (
         <button
-          type="submit"
-          disabled={saving || !date}
-          className="mt-4 px-5 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+          onClick={() => setShowAddDate(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors"
         >
-          {saving ? 'Generando...' : 'Generar Horarios'}
+          <Plus className="w-4 h-4" /> Agregar Fecha
         </button>
-      </form>
+      ) : (
+        <form onSubmit={generateSlots} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-brand-600" />
+            Agregar Fecha
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Fecha</label>
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-brand-500 outline-none"
+                required
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Desde</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={e => setStartTime(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-brand-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={e => setEndTime(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-brand-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Cada (min)</label>
+              <select
+                value={interval}
+                onChange={e => setInterval_(+e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:border-brand-500 outline-none bg-white"
+              >
+                {[10, 15, 20, 30, 45, 60].map(m => (
+                  <option key={m} value={m}>{m} min</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button
+              type="submit"
+              disabled={saving || !date}
+              className="px-5 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              {saving ? 'Generando...' : 'Generar Horarios'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddDate(false)}
+              className="px-4 py-2.5 text-gray-500 rounded-xl text-sm hover:bg-gray-100 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Existing slots by date */}
       {Object.entries(grouped)
@@ -545,36 +614,46 @@ function SlotsTab({ sessionId, slots, onReload }) {
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {dateSlots.map(slot => (
-                <div
-                  key={slot.id}
-                  className={`group relative px-3 py-2 rounded-lg text-sm font-medium border ${
-                    slot.is_booked
-                      ? 'bg-amber-50 border-amber-200 text-amber-700'
-                      : 'bg-gray-50 border-gray-200 text-gray-600'
-                  }`}
-                >
-                  <Clock className="w-3 h-3 inline mr-1 opacity-50" />
-                  {slot.start_time.slice(0, 5)}
-                  {slot.is_booked && (
-                    <span className="ml-1 text-xs opacity-60">reservado</span>
-                  )}
-                  {!slot.is_booked && (
-                    <button
-                      onClick={() => deleteSlot(slot.id)}
-                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+              {dateSlots.map(slot => {
+                const booking = bookingBySlot[slot.id]
+                return (
+                  <div
+                    key={slot.id}
+                    className={`group relative px-3 py-2 rounded-lg text-sm font-medium border ${
+                      slot.is_booked
+                        ? 'bg-brand-50 border-brand-200 text-brand-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-600'
+                    }`}
+                    title={booking ? `${booking.child_name} — ${booking.parent_name}` : ''}
+                  >
+                    <Clock className="w-3 h-3 inline mr-1 opacity-50" />
+                    {slot.start_time.slice(0, 5)}
+                    {slot.is_booked && (
+                      <span className="ml-1 text-xs opacity-60">reservado</span>
+                    )}
+                    {booking && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        {booking.child_name}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                      </div>
+                    )}
+                    {!slot.is_booked && (
+                      <button
+                        onClick={() => deleteSlot(slot.id)}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         ))}
 
-      {Object.keys(grouped).length === 0 && (
-        <p className="text-center text-gray-400 py-8">No hay horarios cargados. Usá el generador de arriba.</p>
+      {!hasSlots && (
+        <p className="text-center text-gray-400 py-8">No hay horarios cargados. Usá "Agregar Fecha" de arriba.</p>
       )}
     </div>
   )
@@ -674,6 +753,11 @@ function BookingsTab({ bookings, slots, onReload }) {
                 {b.time_slots && (
                   <p className="text-sm text-brand-600 font-medium">
                     {format(parseISO(b.time_slots.slot_date), "d MMM yyyy", { locale: es })} — {b.time_slots.start_time.slice(0, 5)}
+                  </p>
+                )}
+                {b.status === 'confirmed' && b.updated_at && (
+                  <p className="text-xs text-emerald-600">
+                    Confirmado el {format(new Date(b.updated_at), "d MMM yyyy, HH:mm", { locale: es })}
                   </p>
                 )}
               </div>
