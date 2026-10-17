@@ -714,7 +714,7 @@ function BookingsTab({ bookings, slots, onReload }) {
     const fecha = slot
       ? format(parseISO(slot.slot_date), "EEEE d 'de' MMMM, yyyy", { locale: es })
       : ''
-    const hora = slot ? `${slot.start_time.slice(0, 5)} a ${slot.end_time.slice(0, 5)}` : ''
+    const hora = slot ? slot.start_time.slice(0, 5) : ''
 
     return [
       `Hola ${b.parent_name}, le confirmamos el turno de fotos para *${b.child_name}*`,
