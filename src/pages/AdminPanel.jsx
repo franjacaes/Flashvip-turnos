@@ -790,6 +790,9 @@ function BookingsTab({ bookings, slots, onReload }) {
                     {format(parseISO(b.time_slots.slot_date), "d MMM yyyy", { locale: es })} — {b.time_slots.start_time.slice(0, 5)}
                   </p>
                 )}
+                <p className="text-xs text-gray-400">
+                  Reservado el {format(new Date(b.created_at), "d MMM yyyy, HH:mm", { locale: es })}
+                </p>
                 {b.status === 'confirmed' && b.updated_at && (
                   <p className="text-xs text-emerald-600">
                     Confirmado el {format(new Date(b.updated_at), "d MMM yyyy, HH:mm", { locale: es })}
