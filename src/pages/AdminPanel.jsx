@@ -238,6 +238,7 @@ export default function AdminPanel() {
           <BookingsTab
             bookings={bookings}
             slots={slots}
+            sessionName={currentSession?.name}
             onReload={refreshAll}
           />
         )}
@@ -697,7 +698,7 @@ function SlotsTab({ sessionId, slots, bookings, onReload }) {
 /* =========================================
    BOOKINGS TAB
    ========================================= */
-function BookingsTab({ bookings, slots, onReload }) {
+function BookingsTab({ bookings, slots, sessionName, onReload }) {
   const [copiedId, setCopiedId] = useState(null)
 
   async function toggleStatus(bookingId, currentStatus) {
@@ -760,7 +761,7 @@ function BookingsTab({ bookings, slots, onReload }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'reservas.xls'
+    a.download = `${sessionName || 'reservas'}.xls`
     a.click()
     URL.revokeObjectURL(url)
   }
