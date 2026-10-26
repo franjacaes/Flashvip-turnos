@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale'
 import {
   LogOut, Plus, Trash2, ToggleLeft, ToggleRight, Clock, Calendar,
   Users, CheckCircle2, AlertCircle, Loader2, ChevronDown, RefreshCw, Copy, Check,
-  ChevronLeft, Camera,
+  ChevronLeft, Camera, Download,
 } from 'lucide-react'
 
 const DETAIL_TABS = [
@@ -742,6 +742,28 @@ function BookingsTab({ bookings, slots, onReload }) {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  function exportCSV() {
+    const header = 'Padre/Madre,Alumno/a,Fecha,Horario,Teléfono,Estado'
+    const rows = bookings.map(b => {
+      const slot = b.time_slots
+      const fecha = slot ? format(parseISO(slot.slot_date), 'dd/MM/yyyy') : ''
+      const hora = slot ? slot.start_time.slice(0, 5) : ''
+      const tel = `${b.phone_country_code} ${b.phone_number}`
+      const estado = b.status === 'confirmed' ? 'Confirmado' : 'Pendiente'
+      return [b.parent_name, b.child_name, fecha, hora, tel, estado]
+        .map(v => `"${v.replace(/"/g, '""')}"`)
+        .join(',')
+    })
+    const csv = '﻿' + [header, ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'reservas.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   if (bookings.length === 0) {
     return (
       <p className="text-center text-gray-400 py-8">No hay reservas todavía.</p>
@@ -750,16 +772,24 @@ function BookingsTab({ bookings, slots, onReload }) {
 
   return (
     <div className="space-y-3">
-      {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-amber-400" />
-          Mensaje pendiente
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-emerald-500" />
-          Confirmado
-        </span>
+      {/* Legend + Export */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-amber-400" />
+            Mensaje pendiente
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-emerald-500" />
+            Confirmado
+          </span>
+        </div>
+        <button
+          onClick={exportCSV}
+          className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" /> Descargar CSV
+        </button>
       </div>
 
       {bookings.map(b => {
