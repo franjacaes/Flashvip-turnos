@@ -744,7 +744,13 @@ function BookingsTab({ bookings, slots, sessionName, onReload }) {
   }
 
   function exportExcel() {
-    const rows = bookings.map(b => {
+    const sorted = [...bookings].sort((a, b) => {
+      const da = a.time_slots?.slot_date || '', db = b.time_slots?.slot_date || ''
+      if (da !== db) return da.localeCompare(db)
+      const ta = a.time_slots?.start_time || '', tb = b.time_slots?.start_time || ''
+      return ta.localeCompare(tb)
+    })
+    const rows = sorted.map(b => {
       const slot = b.time_slots
       const fecha = slot ? format(parseISO(slot.slot_date), 'dd/MM/yyyy') : ''
       const hora = slot ? slot.start_time.slice(0, 5) : ''
