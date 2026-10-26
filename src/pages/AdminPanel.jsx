@@ -742,23 +742,25 @@ function BookingsTab({ bookings, slots, onReload }) {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  function exportCSV() {
-    const sep = 'sep=;\n'
-    const header = 'Padre/Madre;Alumno/a;Fecha;Horario;Teléfono;Estado'
+  function exportExcel() {
     const rows = bookings.map(b => {
       const slot = b.time_slots
       const fecha = slot ? format(parseISO(slot.slot_date), 'dd/MM/yyyy') : ''
       const hora = slot ? slot.start_time.slice(0, 5) : ''
       const tel = `${b.phone_country_code} ${b.phone_number}`
       const estado = b.status === 'confirmed' ? 'Confirmado' : 'Pendiente'
-      return [b.parent_name, b.child_name, fecha, hora, tel, estado].join(';')
-    })
-    const csv = '﻿' + sep + [header, ...rows].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      return `<tr><td>${b.parent_name}</td><td>${b.child_name}</td><td>${fecha}</td><td>${hora}</td><td>${tel}</td><td>${estado}</td></tr>`
+    }).join('')
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"></head><body>
+<table border="1"><thead><tr style="background:#F7931E;color:white;font-weight:bold">
+<th>Padre/Madre</th><th>Alumno/a</th><th>Fecha</th><th>Horario</th><th>Teléfono</th><th>Estado</th>
+</tr></thead><tbody>${rows}</tbody></table></body></html>`
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'reservas.csv'
+    a.download = 'reservas.xls'
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -784,10 +786,10 @@ function BookingsTab({ bookings, slots, onReload }) {
           </span>
         </div>
         <button
-          onClick={exportCSV}
+          onClick={exportExcel}
           className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
         >
-          <Download className="w-3.5 h-3.5" /> Descargar CSV
+          <Download className="w-3.5 h-3.5" /> Descargar Excel
         </button>
       </div>
 
