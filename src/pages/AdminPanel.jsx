@@ -743,18 +743,17 @@ function BookingsTab({ bookings, slots, onReload }) {
   }
 
   function exportCSV() {
-    const header = 'Padre/Madre,Alumno/a,Fecha,Horario,Teléfono,Estado'
+    const sep = 'sep=;\n'
+    const header = 'Padre/Madre;Alumno/a;Fecha;Horario;Teléfono;Estado'
     const rows = bookings.map(b => {
       const slot = b.time_slots
       const fecha = slot ? format(parseISO(slot.slot_date), 'dd/MM/yyyy') : ''
       const hora = slot ? slot.start_time.slice(0, 5) : ''
       const tel = `${b.phone_country_code} ${b.phone_number}`
       const estado = b.status === 'confirmed' ? 'Confirmado' : 'Pendiente'
-      return [b.parent_name, b.child_name, fecha, hora, tel, estado]
-        .map(v => `"${v.replace(/"/g, '""')}"`)
-        .join(',')
+      return [b.parent_name, b.child_name, fecha, hora, tel, estado].join(';')
     })
-    const csv = '﻿' + [header, ...rows].join('\n')
+    const csv = '﻿' + sep + [header, ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
